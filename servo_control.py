@@ -20,7 +20,7 @@ class ServoOpCodes(Enum):
 frame_lengths = {
     FrameType.ALL_SERVO: 37,
     FrameType.ONE_LEG: 8,
-    FrameType.ONE_SERVO: 5,
+    FrameType.ONE_SERVO: 6,
     FrameType.READ_ADC: 0
 }
 

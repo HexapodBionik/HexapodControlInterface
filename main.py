@@ -130,6 +130,10 @@ class App(customtkinter.CTk):
                 self.manage_connection_button.configure(text="Disconnect")
 
         else:
+            # Disable legs before the disconnection
+            for leg in self.legs:
+                leg.disable_leg()
+
             self.conn.disconnect()
             self.manage_connection_button.configure(text="Connect")
 
