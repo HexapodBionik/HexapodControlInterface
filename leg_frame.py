@@ -3,7 +3,7 @@ import tkinter.messagebox
 import customtkinter
 from connection import serial_ports
 from tkinter import filedialog
-from servo_control import entry_angle_to_transmit_data, one_servo_frame, ServoOpCodes
+from servo_control import entry_angle_to_transmit_data, one_servo_frame, ServoOpCodes, one_leg_frame, split_to_integer_and_float_parts
 
 
 class LegFrame(customtkinter.CTkFrame):
@@ -12,6 +12,7 @@ class LegFrame(customtkinter.CTkFrame):
 
         # General variables
         self._leg_id = leg_id
+        self._leg_active = False
         self._connection = connection
 
         self.header_label = customtkinter.CTkLabel(self,
@@ -24,11 +25,61 @@ class LegFrame(customtkinter.CTkFrame):
         for i in range(1, 4):
             servo_id = self._leg_id * 10 + i
             servo_frame = ServoFrame(self, self._connection, servo_id)
-            servo_frame.grid(row=i, column=0, padx=5, pady=5, sticky="w")
+            servo_frame.grid(row=i, column=0, padx=5, pady=5, sticky="w", columnspan=3)
             self.servo_frames.append(servo_frame)
+
+        # Buttons for all servos in the leg
+        self.start_all_button = customtkinter.CTkButton(self, text="Start All", command=self.start_all_servos)
+        self.stop_all_button = customtkinter.CTkButton(self, text="Stop All", command=self.stop_all_servos)
+        self.set_all_button = customtkinter.CTkButton(self, text="Set All", command=self.set_all_servos)
 
         # Place LegFrame widgets using grid
         self.header_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+
+        self.start_all_button.grid(row=4, column=0, padx=5, pady=5, sticky="w")
+        self.stop_all_button.grid(row=4, column=1, padx=5, pady=5, sticky="w")
+        self.set_all_button.grid(row=4, column=2, padx=5, pady=5, sticky="w")
+
+    def _compose_and_send_one_leg_frame(self, op_code: int):
+        angles = [servo_frame.servo_angle for servo_frame in self.servo_frames]
+        if None not in angles:
+            angles_int = []
+            angles_float = []
+
+            for angle in angles:
+                integer_part, float_part = split_to_integer_and_float_parts(angle)
+                angles_int.append(integer_part)
+                angles_float.append(float_part)
+
+            spi_frame = one_leg_frame(self._leg_id, [op_code, op_code, op_code], angles_int, angles_float)
+            print(spi_frame)
+            values = bytearray(spi_frame)
+            self._connection.conn.write(values)
+
+    def start_all_servos(self):
+        if self._connection.conn is not None:
+            self._compose_and_send_one_leg_frame(1)
+            self._leg_active = True
+
+            for servo_frame in self.servo_frames:
+                servo_frame.set_status("active")
+
+    def stop_all_servos(self):
+        if self._leg_active and self._connection.conn is not None:
+            self._compose_and_send_one_leg_frame(2)
+            self._leg_active = False
+
+            for servo_frame in self.servo_frames:
+                servo_frame.set_status("inactive")
+
+    def set_all_servos(self):
+        current_statuses = [servo_frame.servo_active for servo_frame in self.servo_frames]
+
+        if False in current_statuses:
+            self._leg_active = False
+
+        if self._leg_active and self._connection.conn is not None:
+            self._compose_and_send_one_leg_frame(3)
 
     def disable_leg(self):
         for servo_frame in self.servo_frames:
@@ -63,7 +114,7 @@ class ServoFrame(customtkinter.CTkFrame):
         self._status_canvas = customtkinter.CTkCanvas(self, width=20, height=20, bg="white", bd=0, highlightthickness=0)
 
         # Set initial status to red (not working)
-        self.set_status_icon("red")
+        self._set_status_icon("red")
 
         # Use the grid manager to arrange widgets side by side
         self._joint1_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -79,6 +130,18 @@ class ServoFrame(customtkinter.CTkFrame):
         # Update widgets
         self.update_slider(self._default_angle)
         self.update_entry(self._default_angle)
+
+    @property
+    def servo_angle(self):
+        return self._servo_angle
+
+    @property
+    def servo_active(self):
+        return self._servo_active
+
+    @servo_active.setter
+    def servo_active(self, new_value: bool):
+        self._servo_active = new_value
 
     def validate_entry(self, new_value):
         if new_value == "":
@@ -96,6 +159,7 @@ class ServoFrame(customtkinter.CTkFrame):
     def update_slider(self, value):
         self._value_entry.delete(0, tkinter.END)
         self._value_entry.insert(0, round(value, 4))
+        self._servo_angle = round(value, 4)
 
         if self._dynamic_control_var.get():
             self.set_servo_angle()
@@ -103,6 +167,7 @@ class ServoFrame(customtkinter.CTkFrame):
     def update_entry(self, value):
         try:
             self._slider.set(float(self._value_entry.get()))
+            self._servo_angle = float(self._value_entry.get())
         except:
             pass
 
@@ -116,8 +181,7 @@ class ServoFrame(customtkinter.CTkFrame):
             print(spi_frame)
             values = bytearray(spi_frame)
             self._connection.conn.write(values)
-            self.set_status_icon("green")
-            self._servo_active = True
+            self.set_status("active")
 
     def disable_servo(self):
         if self._connection.conn is not None:
@@ -126,8 +190,7 @@ class ServoFrame(customtkinter.CTkFrame):
             print(spi_frame)
             values = bytearray(spi_frame)
             self._connection.conn.write(values)
-            self.set_status_icon("red")
-            self._servo_active = False
+            self.set_status("inactive")
 
     def set_servo_angle(self):
         if self._servo_active and self._connection.conn is not None:
@@ -141,7 +204,15 @@ class ServoFrame(customtkinter.CTkFrame):
             print(spi_frame)
             self._connection.conn.write(values)
 
-    def set_status_icon(self, color):
+    def set_status(self, status: str):
+        if status == "active":
+            self._servo_active = True
+            self._set_status_icon("green")
+        elif status == "inactive":
+            self._servo_active = False
+            self._set_status_icon("red")
+
+    def _set_status_icon(self, color):
         # Update the status icon based on the specified color
         if color == "green":
             self._status_canvas.configure(bg="green")

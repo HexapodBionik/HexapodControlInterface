@@ -99,9 +99,9 @@ class App(customtkinter.CTk):
         for i in range(1, 7):
             frame = LegFrame(self.joints_frame, self.conn, leg_id=i)
             if i > 3:
-                frame.grid(row=i-3, column=1)
+                frame.grid(row=i-3, column=1, padx=(15, 10), pady=(15, 15))
             else:
-                frame.grid(row=i, column=0)
+                frame.grid(row=i, column=0, padx=(10, 15), pady=(15, 15))
             self.legs.append(frame)
 
     def refresh_serial_port(self):
@@ -132,7 +132,7 @@ class App(customtkinter.CTk):
         else:
             # Disable legs before the disconnection
             for leg in self.legs:
-                leg.disable_leg()
+                leg.stop_all_servos()
 
             self.conn.disconnect()
             self.manage_connection_button.configure(text="Connect")
