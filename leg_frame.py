@@ -1,9 +1,7 @@
 import tkinter
 import tkinter.messagebox
 import customtkinter
-from connection import serial_ports
-from tkinter import filedialog
-from servo_control import entry_angle_to_transmit_data, one_servo_frame, ServoOpCodes, one_leg_frame, split_to_integer_and_float_parts
+from hexapod_protocol import entry_angle_to_transmit_data, one_servo_frame, ServoOpCodes, one_leg_frame, split_to_integer_and_float_parts
 
 
 class LegFrame(customtkinter.CTkFrame):
@@ -159,9 +157,11 @@ class ServoFrame(customtkinter.CTkFrame):
     def update_slider(self, value):
         self._value_entry.delete(0, tkinter.END)
         self._value_entry.insert(0, round(value, 4))
-        self._servo_angle = round(value, 4)
 
-        if self._dynamic_control_var.get():
+        new_servo_angle = round(value, 4)
+
+        if self._dynamic_control_var.get() and new_servo_angle != self._servo_angle:
+            self._servo_angle = new_servo_angle
             self.set_servo_angle()
 
     def update_entry(self, value):
@@ -174,6 +174,8 @@ class ServoFrame(customtkinter.CTkFrame):
     def start_servo(self):
         if self._connection.conn is not None:
             angle = self._value_entry.get()
+            self._servo_angle = angle
+
             integer_part, float_part = entry_angle_to_transmit_data(angle)
             spi_frame = one_servo_frame(self._servo_id, ServoOpCodes.START.value,
                                     integer_part, float_part)
@@ -193,8 +195,9 @@ class ServoFrame(customtkinter.CTkFrame):
             self.set_status("inactive")
 
     def set_servo_angle(self):
-        if self._servo_active and self._connection.conn is not None:
-            angle = self._value_entry.get()
+        angle = self._value_entry.get()
+        if self._servo_active and self._connection.conn is not None and angle != self._servo_angle:
+            self._servo_angle = angle
             integer_part, float_part = entry_angle_to_transmit_data(angle)
             spi_frame = one_servo_frame(self._servo_id,
                                         ServoOpCodes.SET.value,

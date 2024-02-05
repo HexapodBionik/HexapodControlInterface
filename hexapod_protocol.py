@@ -1,13 +1,17 @@
 from typing import Tuple
 from enum import Enum
 
+""" 
+Hardware Controller Hexapod Communication Protocol
+File: hexapod_protocol.py
+Version: 1.0
+Authors: Hexapod Bionik Team
+"""
+
 
 class FrameType(Enum):
-    ALL_SERVO = 0
     ONE_LEG = 1
     ONE_SERVO = 2
-    READ_ADC = 3
-    OTHER = 4
 
 
 class ServoOpCodes(Enum):
@@ -16,12 +20,9 @@ class ServoOpCodes(Enum):
     SET = 3
 
 
-# TODO READ_ADC frame length to be defined
 frame_lengths = {
-    FrameType.ALL_SERVO: 37,
     FrameType.ONE_LEG: 14,
     FrameType.ONE_SERVO: 6,
-    FrameType.READ_ADC: 0
 }
 
 

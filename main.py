@@ -24,18 +24,18 @@ class App(customtkinter.CTk):
         self.grid_rowconfigure((0, 1, 2), weight=1)
         self._configure_sidebar_frame()
 
+        # set default values
+        self.appearance_mode_optionemenu.set("Dark")
+        self.scaling_optionemenu.set("100%")
+        self.connection_option_menu.set("COM")
+        self.baudrate_option_menu.set("Baudrate")
+
         # create tabview
         self.tabview = customtkinter.CTkTabview(self, width=250)
         self.tabview.grid(row=0, column=1, columnspan=3, rowspan=3, padx=(20, 20), pady=(20, 20), sticky="nsew")
         self.tabview.add("Leg controls & position")
         self.tabview.add("Inverse kinematics")
         self.tabview.add("Forward kinematics")
-
-        # set default values
-        self.appearance_mode_optionemenu.set("Dark")
-        self.scaling_optionemenu.set("100%")
-        self.connection_option_menu.set("COM")
-        self.baudrate_option_menu.set("Baudrate")
 
         self._configure_controls_frame()
         self.refresh_serial_port()
